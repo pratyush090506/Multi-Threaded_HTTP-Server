@@ -32,6 +32,23 @@ def handle_client(conn, addr):
         method = request_line[0]
         path = request_line[1]
 
+        # Security: Prevent directory traversal
+        if ".." in path or path.startswith("/../") or path.startswith("../"):
+            send_response(conn, 403, "<h1>403 Forbidden</h1>", "text/html")
+            conn.close()
+            return
+
+        # Validate Host header
+        host_header = next((h for h in headers if h.lower().startswith("host:")), None)
+        if not host_header:
+            send_response(conn, 400, "<h1>400 Bad Request - Missing Host</h1>", "text/html")
+            conn.close()
+            return
+        elif "127.0.0.1" not in host_header and "localhost" not in host_header:
+            send_response(conn, 403, "<h1>403 Forbidden - Invalid Host</h1>", "text/html")
+            conn.close()
+            return
+
         # Handle GET request
         if method == "GET":
             handle_get(conn, path)
@@ -49,6 +66,7 @@ def handle_client(conn, addr):
 
     finally:
         conn.close()
+
 
 # Handle GET requests (for text/html and files)
 def handle_get(conn, path):
@@ -141,18 +159,22 @@ def send_response(conn, status_code, content, content_type="text/plain", extra_h
     conn.sendall(response)
 
 # Main server loop
+from concurrent.futures import ThreadPoolExecutor
+
 def start_server():
+    
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as server_socket:
         server_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         server_socket.bind((HOST, PORT))
         server_socket.listen(5)
         print(f"Server running on http://{HOST}:{PORT}/")
 
+        executor = ThreadPoolExecutor(max_workers=5)
+
         while True:
             conn, addr = server_socket.accept()
-            thread = threading.Thread(target=handle_client, args=(conn, addr))
-            thread.daemon = True
-            thread.start()
+            executor.submit(handle_client, conn, addr)
+
 
 if __name__ == "__main__":
     start_server()

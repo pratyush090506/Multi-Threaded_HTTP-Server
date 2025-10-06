@@ -1,125 +1,114 @@
-# 🧠 Multi-Threaded HTTP Server  
-**Made By:** Pratyush Mohanty  
+# Multi-Threaded HTTP Server
 
-## 📌 Overview
-This project is a **multi-threaded HTTP server** built from scratch using **Python’s socket programming**.  
-It handles multiple client connections concurrently, supports both **GET** and **POST** requests, serves **static files (HTML, PNG, JPEG, TXT)**, and also supports **binary file transfers** like images.
+**Made By** : Pratyush Mohanty
 
-The project demonstrates concepts of **network programming**, **thread synchronization**, and **HTTP protocol handling**.
+## Overview
+This project implements a **Multi-Threaded HTTP Server** in Python using socket programming. It can serve static files, handle binary content (images), process simple POST requests with JSON data, and manage multiple concurrent clients using threading. It also includes robust error handling and security validation.
 
 ---
 
-## ⚙️ Features Implemented
-✅ Handles multiple clients simultaneously using **ThreadPoolExecutor**  
-✅ Supports **GET requests** for static files (HTML, images, text)  
-✅ Supports **POST requests** for uploading JSON data  
-✅ Implements **binary transfer** for PNG and JPG files  
-✅ Returns proper **HTTP response headers and codes** (200, 201, 404, etc.)  
-✅ Uses **persistent connections (Keep-Alive)**  
-✅ Implements **host validation** and **error handling**  
-✅ Logs requests and stores uploads in a separate `/uploads` folder  
+## 🧩 Features
+- Handles **GET** and **POST** requests.
+- Serves static files like HTML, text, PNG, and JPEG.
+- Maintains persistent connections using `Keep-Alive`.
+- Prevents directory traversal attacks (`../` or hidden paths`).
+- Validates the **Host header** for security.
+- Handles concurrency using **ThreadPoolExecutor**.
+- Gracefully responds with proper **HTTP status codes**.
 
 ---
 
-## 📁 Folder Structure
+## 📁 Directory Structure
 ```
-CN_Project/
-│
+project/
 ├── server.py
-├── README.md
-│
-├── uploads/
-│   └── upload_20251005_204522_kexucr.json
-│
-└── resources/
-    ├── index.html
-    ├── about.html
-    ├── contact.html
-    ├── logo.png
-    ├── banner.png     # >1MB PNG file
-    ├── photo.jpg
-    ├── photo2.jpg
-    └── sample.txt
+├── resources/
+│   ├── index.html
+│   ├── about.html
+│   ├── contact.html
+│   ├── sample.txt
+│   ├── logo.png
+│   ├── photo.jpg
+└── uploads/
 ```
 
 ---
 
-## 🧩 How to Run
-### **1. Run the server**
+## ⚙️ Setup & Run
+
+### Step 1: Navigate to the project directory
+```bash
+cd project
+```
+
+### Step 2: Run the server
 ```bash
 python3 server.py
 ```
 
-### **2. Test using curl**
-#### Access Homepage
+### Step 3: Access from browser or cURL
 ```bash
-curl -v http://127.0.0.1:8080/
+http://127.0.0.1:8080/
 ```
 
-#### Fetch an Image
+---
+
+## 🧠 Test Scenarios
+
+### ✅ Basic Functionality
+| Request | Expected Output |
+|----------|-----------------|
+| GET / | Serves `index.html` |
+| GET /about.html | Serves HTML file |
+| GET /logo.png | Serves PNG image |
+| GET /photo.jpg | Serves JPEG image |
+| GET /sample.txt | Serves text file |
+| POST /upload (JSON) | Creates file in uploads directory |
+| GET /nonexistent.png | Returns 404 |
+| PUT /index.html | Returns 405 |
+| POST /upload (non-JSON) | Returns 415 |
+
+---
+
+### ✅ Binary Transfer Tests
+- PNG/JPEG downloads are **byte-perfect** (verify via checksum).
+- Large images (>1MB) transfer without corruption.
+
+---
+
+### 🧰 Security Tests
+| Test | Expected Result |
+|------|------------------|
+| GET /../etc/passwd | 403 Forbidden |
+| GET /./././../config | 403 Forbidden |
+| Missing Host header | 400 Bad Request |
+| Host: evil.com | 403 Forbidden |
+
+---
+
+### 🧵 Concurrency Tests
+- Handles **multiple simultaneous downloads**.
+- Queues requests when **thread pool is full**.
+- Maintains integrity during concurrent large file transfers.
+
+---
+
+## 📑 Example Logs
 ```bash
-curl -v "http://127.0.0.1:8080/logo.png" -o logo.png
-```
-
-#### Upload JSON Data
-```bash
-curl -v -H "Content-Type: application/json" -d '{"name":"pratyush"}' http://127.0.0.1:8080/upload
-```
-
----
-
-## 🧱 Binary Transfer Implementation
-When a **binary file (e.g., .png, .jpg)** is requested, the server:
-1. Detects its MIME type using the file extension.  
-2. Opens the file in binary mode (`rb`).  
-3. Sends appropriate headers (`Content-Type`, `Content-Length`, `Content-Disposition`).  
-4. Streams the file directly over the socket.
-
-This allows smooth transfer of large files like images (>1MB) without corruption.
-
----
-
-## 🧵 Thread Pool Architecture
-Instead of creating a new thread for each client, the server uses a **ThreadPoolExecutor**.  
-- A fixed number of worker threads (e.g., 10) are created at startup.  
-- Incoming client connections are added to a queue.  
-- Available threads pick up tasks from the queue and handle requests concurrently.
-
-This improves **performance** and prevents **thread explosion** under high load.
-
----
-
-## 🔒 Security Measures
-- **Host validation:** Ensures only requests to `127.0.0.1` are processed.  
-- **Input sanitization:** Prevents directory traversal attacks by restricting access to `/resources` folder only.  
-- **Connection timeout and keep-alive limits** are implemented to prevent misuse.  
-
----
-
-## ⚠️ Known Limitations
-- Does not currently support **HTTPS / TLS**.  
-- No caching mechanism is implemented.  
-- MIME type detection is basic (extension-based).  
-- Designed for local testing, not production use.  
-
----
-
-## 📜 Example Outputs
-```
-$ curl -v http://127.0.0.1:8080/
-<h1>Multi-threaded HTTP Server Running</h1>
-
-$ curl -v -H "Content-Type: application/json" -d '{"name":"pratyush"}' http://127.0.0.1:8080/upload
-{"status": "success", "message": "File created successfully", "filepath": "/uploads/upload_20251005_204522_kexucr.json"}
+[INFO] Connection from ('127.0.0.1', 50732)
+[INFO] GET request for /logo.png
+[INFO] 200 OK - Served resources/logo.png (image/png)
+[INFO] Connection from ('127.0.0.1', 50733)
+[ERROR] Invalid Host header
 ```
 
 ---
 
-## 👨‍💻 Conclusion
-This project demonstrates a strong understanding of:
-- HTTP request/response cycle  
-- Socket-level communication  
-- Multithreading and resource synchronization  
-- Binary and text data handling  
+## 🚀 Future Enhancements
+- Add HTTPS (TLS support)
+- Implement caching and compression
+- Add user authentication
+- Integrate upload progress tracking
 
-It’s a clean, functional, and realistic implementation of a **multi-threaded web server**.
+---
+
